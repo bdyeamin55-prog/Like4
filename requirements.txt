@@ -1,9 +1,7 @@
 fastapi
-pyjwt
-protobuf
 uvicorn
 pycryptodome
 requests
+protobuf
 psutil
 urllib3
-python-multipart
