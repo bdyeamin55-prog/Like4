@@ -1,0 +1,9 @@
+fastapi
+pyjwt
+protobuf
+uvicorn
+pycryptodome
+requests
+psutil
+urllib3
+python-multipart
