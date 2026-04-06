@@ -1,63 +1,70 @@
 from fastapi import FastAPI, Query
 import threading
 import time
-from black9 import ghost_pakcet
-# আপনার অন্যান্য মডিউল ইমপোর্ট করুন
+import os
+from black9 import ghost_pakcet # আপনার বারকেল মডিউল
+# অন্যান্য প্রয়োজনীয় মডিউল ইমপোর্ট করুন (যেমন: byte, xHeaders)
 
 app = FastAPI()
 
 # গ্লোবাল ডিকশনারি যেখানে কানেক্টেড আইডিগুলো থাকবে
-# (আপনার StarT_SerVer ফাংশন এগুলো পপুলেট করবে)
 connected_clients = {} 
 
 @app.get("/")
 def read_root():
-    return {"status": "API is Running", "connected_accounts": len(connected_clients)}
+    return {
+        "status": "API is Running", 
+        "connected_accounts": len(connected_clients),
+        "gateway": "Active"
+    }
 
 @app.get("/ghost-join")
 def ghost_join_api(
-    code: str = Query(..., description="Team Code for the attack"),
-    name: str = Query("GHOST_PRO", description="Name of the ghost player"),
+    code: str = Query(..., description="Team Code for ghost attack"),
+    name: str = Query("GHOST_PRO", description="Display name of ghost"),
     count: int = Query(50, description="Number of packets per account")
 ):
     """
-    এই এন্ডপয়েন্টটি কল করলে ঘোস্ট জয়েন শুরু হবে।
+    এই লিঙ্কটি কল করলে ঘোস্ট জয়েন শুরু হবে।
     Example: /ghost-join?code=123456&name=KING&count=100
     """
+    # গেট হোম (Gateway) চেক করা
     active_clients = [c for c in connected_clients.values() if hasattr(c, 'CliEnts2')]
     
     if not active_clients:
-        return {"status": "error", "message": "No accounts are currently connected!"}
+        return {"status": "error", "message": "No accounts connected to the gateway!"}
 
-    def attack_task(client, t_code, g_name, p_count):
+    def attack_worker(client, t_code, g_name, p_count):
         try:
             for _ in range(p_count):
-                # বারকেল এরিয়া: প্যাকেট জেনারেট এবং গেট হোম (CliEnts2) দিয়ে সেন্ড
+                # বারকেল এরিয়া: প্যাকেট তৈরি করা
                 packet = ghost_pakcet(str(t_code), str(g_name), "1", client.key, client.iv)
-                client.CliEnts2.send(packet)
-                time.sleep(0.02)
-        extra = {} # Error handling
+                
+                # গেট হোম: সকেট দিয়ে প্যাকেট পুশ করা
+                if client.CliEnts2:
+                    client.CliEnts2.send(packet)
+                time.sleep(0.02) # অ্যাটাক স্পিড
         except Exception as e:
             print(f"Attack failed for {client.id}: {e}")
 
-    # প্রতিটি আইডির জন্য আলাদা থ্রেডে অ্যাটাক শুরু করা
+    # প্রতিটি অ্যাকাউন্টের জন্য আলাদা থ্রেডে অ্যাটাক রান করা
     for client in active_clients:
-        threading.Thread(target=attack_task, args=(client, code, name, count)).start()
+        threading.Thread(target=attack_worker, args=(client, code, name, count), daemon=True).start()
 
     return {
-        "status": "success",
-        "target_code": code,
+        "status": "Attack Started",
+        "team_code": code,
         "ghost_name": name,
-        "accounts_used": len(active_clients),
-        "total_packets_estimate": len(active_clients) * count
+        "total_accounts": len(active_clients)
     }
 
-# --- আপনার একাউন্ট স্টার্ট করার লজিক ---
-def background_account_starter():
-    # এখানে আপনার StarT_SerVer() লজিক থাকবে যা আইডি কানেক্ট করবে
+# --- অ্যাকাউন্ট অটো-কানেক্ট লজিক ---
+def auto_loader():
+    # এখানে আপনার StarT_SerVer() এর কোডটুকু বসবে যা accs.json থেকে 
+    # আইডি নিয়ে connected_clients ডিকশনারিতে সেভ করবে।
     pass
 
 @app.on_event("startup")
 def startup_event():
-    # এপিআই চালু হওয়ার সময় ব্যাকগ্রাউন্ডে আইডি কানেকশন শুরু হবে
-    threading.Thread(target=background_account_starter, daemon=True).start()
+    # এপিআই স্টার্ট হওয়ার সাথে সাথে ব্যাকগ্রাউন্ডে আইডি কানেক্ট হবে
+    threading.Thread(target=auto_loader, daemon=True).start()
